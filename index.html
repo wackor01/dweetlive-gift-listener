@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17151a">
+<title>DweetLive Gift Printer</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#17151a;color:#f6eee6;font-family:system-ui,-apple-system,sans-serif}
+main{max-width:760px;margin:auto;padding:18px;min-height:100svh;display:flex;flex-direction:column;gap:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px}h1{font-size:18px;margin:0;letter-spacing:.08em}
+.pill{font-size:12px;border:1px solid #66545a;border-radius:30px;padding:7px 10px;color:#e6c9a7}
+.panel{background:#252128;border:1px solid #4b4048;border-radius:16px;padding:14px}
+label{display:block;font-size:12px;color:#cbb9bd;margin:8px 0 5px}
+input,button{font:inherit;border-radius:10px;padding:12px;border:1px solid #66545a;background:#17151a;color:#fff;width:100%}
+button{background:#a56d57;border:0;font-weight:700;margin-top:10px}
+.printer{background:linear-gradient(145deg,#d2cbc3,#706b6c);border-radius:24px;padding:16px 14px 24px;color:#242126;box-shadow:0 20px 40px #0008}
+.printertop{height:26px;border-radius:9px;background:#5e595b;margin-bottom:12px}.slot{height:12px;background:#282529;border-radius:8px;margin:8px 0 14px}
+#paper{min-height:270px;background:#fffdf8;color:#252126;padding:18px 16px;border-radius:4px;box-shadow:0 5px 12px #0004}
+.empty{text-align:center;color:#777;margin-top:90px;font-size:13px}
+.card{text-align:center;border:1px dashed #b6a78e;padding:18px 12px}.avatar{width:70px;height:70px;border-radius:50%;object-fit:cover;background:#ddd;margin:8px auto;display:block}
+.avatarfallback{width:70px;height:70px;border-radius:50%;background:#d8c6b4;color:#46352c;margin:8px auto;display:grid;place-items:center;font-size:24px;font-weight:700}
+.name{font-size:22px;font-weight:800;overflow-wrap:anywhere}.handle{font-size:12px;color:#716b68}
+.gift{margin:12px 0 6px;font-weight:700}.message{font-size:13px;margin:10px 0}.vip{border:2px solid #c59b39;background:#fff8df}
+.tag{font-size:11px;letter-spacing:.16em;font-weight:900;color:#98701d}
+#feed{display:flex;flex-direction:column;gap:8px;max-height:210px;overflow:auto}
+.feeditem{font-size:13px;background:#302a32;border-radius:9px;padding:9px 11px;overflow-wrap:anywhere}
+.muted{font-size:12px;color:#b9aeb4;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+<header><h1>DWEETLIVE · GIFT PRINTER</h1><span class="pill" id="status">DISCONNECTED</span></header>
+<section class="panel">
+<label for="token">Printer access token</label>
+<input id="token" type="password" autocomplete="off" placeholder="Paste Render access token">
+<button id="connect">Connect printer screen</button>
+<p class="muted">Keep this page open during your TikTok LIVE. The token is held only in this page's memory and is not saved.</p>
+</section>
+<section class="printer"><div class="printertop"></div><div class="slot"></div><div id="paper"><div class="empty">Waiting for real LIVE events…</div></div></section>
+<section class="panel"><strong>Recent LIVE activity</strong><div id="feed" style="margin-top:10px"></div></section>
+<p class="muted">Unofficial TikTok LIVE connection. Only real events received by the listener are printed here.</p>
+</main>
+<script>
+(() => {
+const $=id=>document.getElementById(id);let socket=null,reconnectTimer=null,currentToken='',manuallyClosed=false;
+function status(text){$('status').textContent=text.toUpperCase()}
+function addFeed(text){const item=document.createElement('div');item.className='feeditem';item.textContent=text;$('feed').prepend(item);while($('feed').children.length>12)$('feed').lastElementChild.remove()}
+function makeCard(d){
+const paper=$('paper');paper.replaceChildren();const card=document.createElement('div');card.className='card'+(d.vip?' vip':'');
+const tag=document.createElement('div');tag.className='tag';tag.textContent=d.vip?'✦ VIP SUPPORTER ✦':'THANK YOU FOR YOUR SUPPORT';card.append(tag);
+if(d.avatar){const img=document.createElement('img');img.className='avatar';img.alt='Viewer profile';img.referrerPolicy='no-referrer';img.src=d.avatar;img.onerror=()=>{const f=document.createElement('div');f.className='avatarfallback';f.textContent=(d.nickname||'?').slice(0,1).toUpperCase();img.replaceWith(f)};card.append(img)}
+else{const f=document.createElement('div');f.className='avatarfallback';f.textContent=(d.nickname||'?').slice(0,1).toUpperCase();card.append(f)}
+const name=document.createElement('div');name.className='name';name.textContent=d.nickname||'TikTok viewer';card.append(name);
+const handle=document.createElement('div');handle.className='handle';handle.textContent=d.uniqueId?'@'+d.uniqueId:'';card.append(handle);
+const gift=document.createElement('div');gift.className='gift';gift.textContent=(d.giftName||'')+(d.giftCount>1?' × '+d.giftCount:'');card.append(gift);
+const message=document.createElement('div');message.className='message';message.textContent=d.card?.message||'Thank you for being part of the LIVE!';card.append(message);
+const follow=document.createElement('div');follow.className='handle';follow.textContent='SHOW SOME LOVE · FOLLOW THEIR PAGE';card.append(follow);paper.append(card)}
+function handlePacket(p){if(p.event==='connection.status'){status(p.data?.status||'connected');return}if(p.event!=='live.event')return;const d=p.data||{};
+if(d.type==='gift'){makeCard(d);addFeed(`${d.nickname||'Viewer'} sent ${d.giftName||'a gift'}${d.giftCount>1?' × '+d.giftCount:''}${d.vip?' · VIP':''}`)}
+else if(['follow','like','share','subscription','member'].includes(d.type))addFeed(`${d.nickname||'Viewer'} · ${d.message||d.type}`);
+else if(d.type==='chat')addFeed(`${d.nickname||'Viewer'}: ${d.comment||''}`)}
+function connect(){manuallyClosed=false;currentToken=$('token').value.trim();if(!currentToken){status('token required');return}if(socket)socket.close();
+const scheme=location.protocol==='https:'?'wss':'ws';socket=new WebSocket(`${scheme}://${location.host}/live?token=${encodeURIComponent(currentToken)}`);status('connecting');
+socket.onopen=()=>status('connected to listener');socket.onmessage=e=>{try{handlePacket(JSON.parse(e.data))}catch{}};
+socket.onerror=()=>status('connection error');socket.onclose=()=>{status('disconnected');if(!manuallyClosed){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,5000)}}}
+$('connect').addEventListener('click',connect);window.addEventListener('pagehide',()=>{manuallyClosed=true;if(socket)socket.close()});
+})();
+</script>
+</body>
+</html>

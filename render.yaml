@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: dweetlive-gift-listener
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DWEETLIVE_USERNAME
+        value: dweetlive
+      - key: DWEETLIVE_ACCESS_TOKEN
+        generateValue: true
+      - key: VIP_DIAMONDS
+        value: "100"
+      - key: RECONNECT_MS
+        value: "15000"
