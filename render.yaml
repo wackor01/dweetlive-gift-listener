@@ -3,7 +3,7 @@ services:
     name: dweetlive-gift-listener
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && mkdir -p public && cp index.html public/index.html
     startCommand: npm start
     healthCheckPath: /health
     envVars:
